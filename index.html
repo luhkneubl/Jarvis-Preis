@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>J.A.R.V.I.S. Preis</title>
+<style>
+body{background:#07111e;color:#d8faff;font-family:Arial,sans-serif;text-align:center;padding:35px 15px}
+h1{color:#42d9f5;letter-spacing:5px}
+.orbe{margin:55px auto 30px;width:180px;height:180px;border:4px solid #42d9f5;border-radius:50%;display:grid;place-items:center;box-shadow:0 0 35px #1686a5,inset 0 0 35px #1686a5;font-size:65px;color:#6be9ff}
+button{background:#123c50;color:#fff;border:1px solid #42d9f5;border-radius:15px;padding:18px;margin:10px;font-size:16px}
+p{line-height:1.6}
+</style>
+</head>
+<body>
+<h1>J.A.R.V.I.S.</h1>
+<p>Sistema pessoal da Senhora Preis</p>
+<div class="orbe">J</div>
+<p id="resposta">Boa tarde, senhora Preis. Sistemas iniciados.</p>
+<button onclick="falar()">🎩 Ouvir Jarvis</button>
+<script>
+function falar(){
+let frase="À sua disposição, senhora Preis. Espero que hoje nenhum equipamento seja sacrificado.";
+document.getElementById("resposta").textContent=frase;
+if("speechSynthesis" in window){
+speechSynthesis.cancel();
+let voz=new SpeechSynthesisUtterance(frase);
+voz.lang="pt-BR";voz.rate=0.9;
+speechSynthesis.speak(voz);
+}else{alert("Voz não disponível neste navegador.");}
+}
+</script>
+</body>
+</html>
