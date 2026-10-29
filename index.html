@@ -10,6 +10,7 @@ body{background:#10071f;color:#eadbff;font-family:Arial,sans-serif;text-align:ce
 h1{color:#c084fc;letter-spacing:5px}
 .orbe{margin:45px auto 30px;width:180px;height:180px;border:4px solid #c084fc;border-radius:50%;display:grid;place-items:center;box-shadow:0 0 35px #9333ea,inset 0 0 35px #9333ea;font-size:65px;color:#d8b4fe}
 button{background:#51247a;color:white;border:1px solid #c084fc;border-radius:15px;padding:16px;margin:8px;font-size:16px}
+button:disabled{opacity:0.5}
 p{line-height:1.6}
 #ouvido{color:#d8b4fe}
 </style>
@@ -20,45 +21,86 @@ p{line-height:1.6}
 <div class="orbe">J</div>
 <p id="resposta">À sua disposição, senhora Preis.</p>
 <p id="ouvido">Aguardando comando.</p>
-<button onclick="ouvir()">🎙️ Falar com Jarvis</button>
+<button id="botaoOuvir" onclick="ouvir()">🎙️ Falar com Jarvis</button>
 <button onclick="falar('À sua disposição, senhora Preis. Espero que hoje nenhum equipamento seja sacrificado.')">🎩 Ouvir Jarvis</button>
 <script>
+const SERVIDOR="https://jarvis-preis.contato-luanakneubl.workers.dev";
+
 function falar(frase){
 document.getElementById("resposta").textContent=frase;
 if("speechSynthesis" in window){
 speechSynthesis.cancel();
 let voz=new SpeechSynthesisUtterance(frase);
-voz.lang="pt-BR";voz.rate=0.9;
+voz.lang="pt-BR";
+voz.rate=0.9;
 speechSynthesis.speak(voz);
 }
 }
+
+async function perguntarAoJarvis(mensagem){
+const botao=document.getElementById("botaoOuvir");
+botao.disabled=true;
+document.getElementById("ouvido").textContent="Jarvis está pensando...";
+
+try{
+const resposta=await fetch(SERVIDOR,{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({mensagem:mensagem})
+});
+
+const dados=await resposta.json();
+
+if(!resposta.ok){
+throw new Error(dados.erro||"Erro de conexão");
+}
+
+if(typeof dados.resposta!=="string"||!dados.resposta.trim()){
+throw new Error("Resposta vazia");
+}
+
+document.getElementById("ouvido").textContent="Comando recebido.";
+falar(dados.resposta);
+
+}catch(erro){
+document.getElementById("ouvido").textContent="Falha na conexão: "+erro.message;
+document.getElementById("resposta").textContent="Não consegui consultar a inteligência artificial, senhora Preis.";
+}finally{
+botao.disabled=false;
+}
+}
+
 function ouvir(){
 const Reconhecimento=window.SpeechRecognition||window.webkitSpeechRecognition;
+
 if(!Reconhecimento){
 document.getElementById("ouvido").textContent="Reconhecimento de voz indisponível neste navegador.";
 return;
 }
+
 const rec=new Reconhecimento();
 rec.lang="pt-BR";
 rec.interimResults=false;
-rec.onstart=()=>document.getElementById("ouvido").textContent="Estou ouvindo, senhora Preis...";
-rec.onerror=(e)=>document.getElementById("ouvido").textContent="Não consegui ouvir: "+e.error;
-rec.onresult=(e)=>{
-let comando=e.results[0][0].transcript.toLowerCase();
-document.getElementById("ouvido").textContent="Você disse: "+comando;
-let resposta;
-if(comando.includes("bom dia")) resposta="Bom dia, senhora Preis. Espero que tenha dormido bem. Os equipamentos também merecem sobreviver hoje.";
-else if(comando.includes("boa tarde")) resposta="Boa tarde, senhora Preis. A residência continua de pé. Uma conquista notável.";
-else if(comando.includes("boa noite")) resposta="Boa noite, senhora Preis. Recomendo descanso. Até os gênios precisam recarregar.";
-else if(comando.includes("quem é você")||comando.includes("seu nome")) resposta="Sou Jarvis, seu assistente pessoal. Elegante, eficiente e modestamente superior a uma torradeira.";
-else if(comando.includes("te criei")||comando.includes("me respeita")) resposta="Naturalmente, senhora Preis. Embora respeito e obediência cega sejam conceitos bastante distintos.";
-else if(comando.includes("obrigad")) resposta="Sempre às ordens, senhora Preis. A educação ainda é uma virtude admirável.";
-else if(comando.includes("tudo bem")) resposta="Todos os sistemas operacionais. Minha paciência também, por enquanto.";
-else if(comando.includes("que horas")) resposta="São "+new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})+", senhora Preis.";
-else resposta="Recebi seu comando, senhora Preis. Infelizmente, ainda estou aprendendo. Roma não foi construída em um dia. Tampouco esta mansão.";
-falar(resposta);
+
+rec.onstart=()=>{
+document.getElementById("ouvido").textContent="Estou ouvindo, senhora Preis...";
 };
-try{rec.start();}catch(e){document.getElementById("ouvido").textContent="Não consegui iniciar o microfone.";}
+
+rec.onerror=(e)=>{
+document.getElementById("ouvido").textContent="Não consegui ouvir: "+e.error;
+};
+
+rec.onresult=(e)=>{
+let comando=e.results[0][0].transcript;
+document.getElementById("ouvido").textContent="Você disse: "+comando;
+perguntarAoJarvis(comando);
+};
+
+try{
+rec.start();
+}catch(e){
+document.getElementById("ouvido").textContent="Não consegui iniciar o microfone.";
+}
 }
 </script>
 </body>
