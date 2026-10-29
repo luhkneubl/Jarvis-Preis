@@ -62,7 +62,7 @@ export default {
 
       if (!resposta.ok) {
         return new Response(JSON.stringify({
-          erro: "Gemini indisponivel",
+         "erro: "Gemini indisponivel (Google: " + resposta.status + ")",
           status: resposta.status
         }), { status: 502, headers });
       }
