@@ -36,7 +36,7 @@ voz.rate=0.9;
 voz.pitch=0.8;
 const vozes=speechSynthesis.getVoices();
 voz.voice=vozes.find(v=>v.lang.startsWith("pt") && /male|masculin/i.test(v.name)) || null;
-alert("Vozes disponíveis:\n" + vozes.map(v => v.name + " — " + v.lang).join("\n"));
+alert("Vozes em português:\n" + vozes.filter(v => v.lang.toLowerCase().startsWith("pt")).map(v => v.name + " — " + v.lang).join("\n"));
 speechSynthesis.speak(voz);
 }
 }
