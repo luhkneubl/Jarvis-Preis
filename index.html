@@ -73,6 +73,9 @@ botao.disabled=false;
 }
 }
 
+window.addEventListener("load", () => {
+  ouvir();
+});
 function ouvir(){
 const Reconhecimento=window.SpeechRecognition||window.webkitSpeechRecognition;
 
