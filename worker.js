@@ -136,11 +136,12 @@ como um assistente confiável e cavalheiresco.
             systemInstruction: {
               parts: [{ text: instrucao }]
             },
-            contents: [{
-              role: "user",
-              parts: [{
-                text: mensagem.trim().slice(0, 1000)
-              }]
+            contents: [
+  ...historico,
+  {
+    role: "user",
+    parts: [{text: mensagem.trim().slice(0, 1000)}]
+
             }],
             generationConfig: {
               maxOutputTokens: 500
