@@ -48,7 +48,6 @@ try {
 } catch {
   return enviar({ erro: "Mensagem inválida" }, 400);
 }
-    }
 
     if (typeof mensagem !== "string" || !mensagem.trim()) {
       return enviar({ erro: "Mensagem vazia" }, 400);
