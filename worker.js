@@ -112,7 +112,7 @@ export default {
           if (b === "gemini-3.8-flash") return 1;
           return a.localeCompare(b);
         })
-        .slice(0, 4);
+        .slice(0, 10);
 
       if (!modelos.length) {
         return enviar({
