@@ -53,6 +53,20 @@ try {
       return enviar({ erro: "Mensagem vazia" }, 400);
     }
 
+    const perguntaHora = /que horas|qual(?: é)? a hora|me diga a hora|horário agora/i.test(mensagem);
+
+if (perguntaHora) {
+  const horaCerta = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).format(new Date());
+
+  return enviar({
+    resposta: `São ${horaCerta}, senhora Preis.`
+  });
+}
     if (!env.GEMINI_API_KEY) {
       return enviar({
         erro: "Chave Gemini não configurada."
