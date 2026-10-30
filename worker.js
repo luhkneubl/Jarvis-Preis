@@ -26,12 +26,28 @@ export default {
     }
 
     let mensagem;
+let historico = [];
 
-    try {
-      const corpo = await request.json();
-      mensagem = corpo.mensagem;
-    } catch {
-      return enviar({ erro: "Mensagem inválida" }, 400);
+try {
+  const corpo = await request.json();
+  mensagem = corpo.mensagem;
+
+  if (Array.isArray(corpo.historico)) {
+    historico = corpo.historico
+      .slice(-12)
+      .filter(item =>
+        item &&
+        ["user", "model"].includes(item.role) &&
+        typeof item.text === "string"
+      )
+      .map(item => ({
+        role: item.role,
+        parts: [{ text: item.text.slice(0, 1000) }]
+      }));
+  }
+} catch {
+  return enviar({ erro: "Mensagem inválida" }, 400);
+}
     }
 
     if (typeof mensagem !== "string" || !mensagem.trim()) {
