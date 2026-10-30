@@ -44,7 +44,7 @@ export default {
 
     try {
       const resposta = await fetch(
-        "https://generativelanguage.googleapis.com/v1beta/models/models/gemini-2.5-flash:generateContent:",
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
         {
           method: "POST",
           signal: AbortSignal.timeout(20000),
