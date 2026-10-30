@@ -1,46 +1,53 @@
+
 export default {
   async fetch(request, env) {
+    const origem = "https://luhkneubl.github.io";
+
     const headers = {
-      "Access-Control-Allow-Origin": "https://luhkneubl.github.io",
+      "Access-Control-Allow-Origin": origem,
       "Access-Control-Allow-Methods": "POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
-      "Content-Type": "application/json"
+      "Content-Type": "application/json; charset=utf-8"
     };
+
+    const enviar = (dados, status = 200) =>
+      new Response(JSON.stringify(dados), { status, headers });
 
     if (request.method === "OPTIONS") {
       return new Response(null, { headers });
     }
 
     if (request.method !== "POST") {
-      return new Response(JSON.stringify({ erro: "Metodo nao permitido" }), {
-        status: 405, headers
-      });
+      return enviar({ erro: "Método não permitido" }, 405);
     }
 
-    if (request.headers.get("Origin") !== "https://luhkneubl.github.io") {
-      return new Response(JSON.stringify({ erro: "Origem nao permitida" }), {
-        status: 403, headers
-      });
+    if (request.headers.get("Origin") !== origem) {
+      return enviar({ erro: "Origem não permitida" }, 403);
+    }
+
+    let mensagem;
+
+    try {
+      const corpo = await request.json();
+      mensagem = corpo.mensagem;
+    } catch {
+      return enviar({ erro: "JSON inválido" }, 400);
+    }
+
+    if (typeof mensagem !== "string" || !mensagem.trim()) {
+      return enviar({ erro: "Mensagem vazia" }, 400);
+    }
+
+    if (!env.GEMINI_API_KEY) {
+      return enviar({ erro: "Chave Gemini não configurada" }, 503);
     }
 
     try {
-      const { mensagem } = await request.json();
-      if (typeof mensagem !== "string" || !mensagem.trim()) {
-        return new Response(JSON.stringify({ erro: "Mensagem vazia" }), {
-          status: 400, headers
-        });
-      }
-
-      if (!env.GEMINI_API_KEY) {
-        return new Response(JSON.stringify({ erro: "Chave nao configurada" }), {
-          status: 503, headers
-        });
-      }
-
       const resposta = await fetch(
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
         {
           method: "POST",
+          signal: AbortSignal.timeout(20000),
           headers: {
             "Content-Type": "application/json",
             "x-goog-api-key": env.GEMINI_API_KEY
@@ -48,37 +55,55 @@ export default {
           body: JSON.stringify({
             systemInstruction: {
               parts: [{
-                text: "Voce e J.A.R.V.I.S., assistente pessoal da senhora Preis. Responda em portugues brasileiro, com extrema educacao, inteligencia e humor seco britanico. Use sarcasmo sutil quando apropriado. Seja natural, prestativo e conciso. Pode discordar respeitosamente. Nao afirme executar acoes que nao pode executar."
+                text: "Você é J.A.R.V.I.S., assistente pessoal da senhora Preis. Fale em português brasileiro. Seja extremamente educado, inteligente e prestativo, com humor seco britânico e sarcasmo sutil. Seja natural e conciso. Pode discordar respeitosamente. Não afirme realizar ações que não pode executar."
               }]
             },
             contents: [{
               role: "user",
-              parts: [{ text: mensagem.slice(0, 1000) }]
+              parts: [{
+                text: mensagem.trim().slice(0, 1000)
+              }]
             }],
-            generationConfig: { maxOutputTokens: 500 }
+            generationConfig: {
+              maxOutputTokens: 500
+            }
           })
         }
       );
 
+      const dados = await resposta.json().catch(() => ({}));
+
       if (!resposta.ok) {
-        return new Response(JSON.stringify({
-         erro: "Gemini indisponivel (Google: " + resposta.status + ")",
-          status: resposta.status
-        }), { status: 502, headers });
+        const codigo = resposta.status;
+        const detalhe = dados.error?.message || "Sem detalhes";
+
+        return enviar({
+          erro: `Google ${codigo}: ${detalhe}`,
+          status: codigo
+        }, 502);
       }
 
-      const dados = await resposta.json();
       const texto = dados.candidates?.[0]?.content?.parts
-        ?.map(parte => parte.text || "").join("").trim();
+        ?.map(parte => parte.text || "")
+        .join("")
+        .trim();
 
-      return new Response(JSON.stringify({
-        resposta: texto || "Perdoe-me, senhora Preis. Nao consegui formular uma resposta."
-      }), { headers });
+      return enviar({
+        resposta: texto ||
+          "Perdoe-me, senhora Preis. Não consegui formular uma resposta."
+      });
+
     } catch (erro) {
-      return new Response(JSON.stringify({
-        erro: "Falha ao processar mensagem"
-      }), { status: 500, headers });
+      if (erro.name === "TimeoutError" ||
+          erro.name === "AbortError") {
+        return enviar({
+          erro: "O Google demorou mais de 20 segundos para responder."
+        }, 504);
+      }
+
+      return enviar({
+        erro: "Falha de comunicação com o Google."
+      }, 502);
     }
   }
 };
-
