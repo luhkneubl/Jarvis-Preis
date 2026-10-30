@@ -2,6 +2,7 @@
 export default {
   async fetch(request, env) {
     const origem = "https://luhkneubl.github.io";
+
     const headers = {
       "Access-Control-Allow-Origin": origem,
       "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -25,6 +26,7 @@ export default {
     }
 
     let mensagem;
+
     try {
       const corpo = await request.json();
       mensagem = corpo.mensagem;
@@ -37,17 +39,25 @@ export default {
     }
 
     if (!env.GEMINI_API_KEY) {
-      return enviar({ erro: "Chave Gemini não configurada" }, 503);
+      return enviar({
+        erro: "Chave Gemini não configurada."
+      }, 503);
     }
 
-    const base = "https://generativelanguage.googleapis.com/v1beta";
-    const autenticacao = { "x-goog-api-key": env.GEMINI_API_KEY };
+    const base =
+      "https://generativelanguage.googleapis.com/v1beta";
+
+    const autenticacao = {
+      "x-goog-api-key": env.GEMINI_API_KEY
+    };
 
     const instrucao =
-      "Você é J.A.R.V.I.S., assistente da senhora Preis. " +
+      "Você é J.A.R.V.I.S., assistente pessoal da senhora Preis. " +
       "Responda em português brasileiro, com extrema educação, " +
-      "inteligência, humor seco britânico e sarcasmo sutil. " +
-      "Seja natural e prestativo. Pode discordar respeitosamente. " +
+      "inteligência e humor seco britânico. " +
+      "Use sarcasmo sutil quando apropriado. " +
+      "Seja natural, prestativo e conciso. " +
+      "Pode discordar respeitosamente. " +
       "Não afirme realizar ações que não pode executar.";
 
     async function consultar(modelo) {
@@ -55,7 +65,7 @@ export default {
         `${base}/models/${encodeURIComponent(modelo)}:generateContent`,
         {
           method: "POST",
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(12000),
           headers: {
             ...autenticacao,
             "Content-Type": "application/json"
@@ -66,9 +76,13 @@ export default {
             },
             contents: [{
               role: "user",
-              parts: [{ text: mensagem.trim().slice(0, 1000) }]
+              parts: [{
+                text: mensagem.trim().slice(0, 1000)
+              }]
             }],
-            generationConfig: { maxOutputTokens: 500 }
+            generationConfig: {
+              maxOutputTokens: 500
+            }
           })
         }
       );
@@ -77,76 +91,105 @@ export default {
 
       if (!resposta.ok) {
         return {
-          erro: dados.error?.message || `Google ${resposta.status}`,
+          erro: dados.error?.message ||
+            `Google ${resposta.status}`,
           status: resposta.status
         };
       }
 
       const texto = dados.candidates?.[0]?.content?.parts
-        ?.map(parte => parte.text || "").join("").trim();
+        ?.map(parte => parte.text || "")
+        .join("")
+        .trim();
 
-      return { texto };
+      return {
+        texto,
+        erro: texto ? null : "Resposta vazia"
+      };
     }
 
     try {
-      const lista = await fetch(`${base}/models?pageSize=100`, {
-        headers: autenticacao,
-        signal: AbortSignal.timeout(10000)
-      });
+      const lista = await fetch(
+        `${base}/models?pageSize=100`,
+        {
+          headers: autenticacao,
+          signal: AbortSignal.timeout(10000)
+        }
+      );
 
       if (!lista.ok) {
         return enviar({
-          erro: `Não foi possível consultar os modelos: Google ${lista.status}`
+          erro: `Falha ao consultar modelos: Google ${lista.status}`
         }, 502);
       }
 
       const dadosLista = await lista.json();
+
       const modelos = (dadosLista.models || [])
         .filter(modelo =>
-          modelo.supportedGenerationMethods?.includes("generateContent")
+          modelo.supportedGenerationMethods?.includes(
+            "generateContent"
+          )
         )
-        .map(modelo => modelo.name.replace(/^models\//, ""))
-        .filter(nome => nome.includes("flash"))
+        .map(modelo =>
+          modelo.name.replace(/^models\//, "")
+        )
+        .filter(nome =>
+          nome.includes("flash") &&
+          !/tts|audio|live|image|embedding|native/i.test(nome)
+        )
         .sort((a, b) => {
           if (a === "gemini-3.8-flash") return -1;
           if (b === "gemini-3.8-flash") return 1;
           return a.localeCompare(b);
         })
-        .slice(0, 10);
+        .slice(0, 5);
 
       if (!modelos.length) {
         return enviar({
-          erro: "Nenhum modelo Flash compatível encontrado."
+          erro: "Nenhum modelo Flash de texto encontrado."
         }, 502);
       }
 
-      let ultimoErro = "Nenhum modelo respondeu.";
+      const erros = [];
 
       for (const modelo of modelos) {
         try {
           const resultado = await consultar(modelo);
 
           if (resultado.texto) {
-            return enviar({ resposta: resultado.texto });
+            return enviar({
+              resposta: resultado.texto
+            });
           }
 
-          ultimoErro = `${modelo}: ${resultado.erro || "Resposta vazia"}`;
+          erros.push(
+            `${modelo}: ${resultado.erro || "Resposta vazia"}`
+          );
 
-          if (![404, 429, 500, 502, 503, 504].includes(resultado.status)) {
+          if (
+            resultado.status &&
+            ![404, 429, 500, 502, 503, 504].includes(
+              resultado.status
+            )
+          ) {
             break;
           }
+
         } catch (erro) {
-          ultimoErro = `${modelo}: tempo de espera ou conexão`;
+          erros.push(
+            `${modelo}: tempo de espera ou falha de conexão`
+          );
         }
       }
 
       return enviar({
-        erro: `Não consegui consultar os modelos. ${ultimoErro}`
+        erro: `Modelos testados: ${erros.join(" | ")}`
       }, 502);
 
     } catch (erro) {
       return enviar({
-        erro: "Falha ao consultar os modelos do Google."
+        erro: "Falha ao consultar a lista de modelos do Google."
       }, 502);
     }
   }
