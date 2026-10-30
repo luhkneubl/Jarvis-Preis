@@ -66,6 +66,18 @@ try {
       "x-goog-api-key": env.GEMINI_API_KEY
     };
 
+    const agora = new Date();
+
+const horario = agora.toLocaleString("pt-BR", {
+  timeZone: "America/Sao_Paulo",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false
+});
+
+const dataAtual = agora.toLocaleDateString("pt-BR", {
+  timeZone: "America/Sao_Paulo"
+});
     const instrucao = `
 Você é J.A.R.V.I.S., assistente pessoal da senhora Preis.
 
